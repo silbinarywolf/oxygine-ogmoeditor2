@@ -85,6 +85,7 @@ void OgmoProject::loadLevelInto(OgmoLevel* result, const char* name) {
 
 	result->roomWidth = levelTag.attribute("width").as_int();
 	result->roomHeight = levelTag.attribute("height").as_int();
+	result->setSize((float)result->roomWidth, (float)result->roomHeight);
 	result->project = this;
 
 	auto levelChildren = levelTag.children();
@@ -189,16 +190,21 @@ int OgmoLevelData::getTileAt(OgmoTileLayer* tileLayer, int x, int y) {
 	size_t columns = roomWidth / gridWidth;
 	size_t rows = roomHeight / gridHeight;
 
-	int entityGridX = x / gridWidth;
-	int entityGridY = y / gridHeight;
+	size_t entityGridX = x / gridWidth;
+	size_t entityGridY = y / gridHeight;
+	if (entityGridX < 0 || entityGridY < 0) {
+		return OGMO_OUT_OF_BOUNDS_TILE;
+	}
+	if (entityGridX >= columns || entityGridY >= rows) {
+		return OGMO_OUT_OF_BOUNDS_TILE;
+	}
 
 	size_t tileIndex = entityGridX + (entityGridY * columns);
 	auto tiles = tileLayer->tiles;
-	int tileID = OGMO_BLANK_TILE;
 	if (tileIndex >= 0 && tileIndex < tiles.size()) {
-		tileID = tiles.at(tileIndex);
+		return tiles.at(tileIndex);
 	}
-	return tileID;
+	return OGMO_OUT_OF_BOUNDS_TILE;
 }
 
 void OgmoLevel::doRender(const RenderState& rs) {
@@ -211,13 +217,14 @@ void OgmoLevel::doRender(const RenderState& rs) {
 		auto tileLayer = &tileLayers.at(layerIndex);
 
 		// todo(Jake): At some point, ensure that doing this every frame isn't too costly.
-		sprite.setResAnim(project->resource->getResAnim(tileLayer->tileset->name));
+		auto resAnim = project->resource->getResAnim(tileLayer->tileset->name);
+		sprite.setResAnim(resAnim);
 
-		int gridX = tileLayer->definition->gridWidth;
-		int gridY = tileLayer->definition->gridHeight;
+		int gridXSize = tileLayer->definition->gridWidth;
+		int gridYSize = tileLayer->definition->gridHeight;
 
-		size_t columns = roomWidth / gridX;
-		size_t rows = roomHeight / gridY;
+		size_t columns = roomWidth / gridXSize;
+		size_t rows = roomHeight / gridYSize;
 
 		auto tiles = &tileLayer->tiles;
 		size_t tilesSize = tiles->size();
@@ -227,7 +234,11 @@ void OgmoLevel::doRender(const RenderState& rs) {
 		for (size_t y = 0; y < rows; ++y) {
 			float xx = 0;
 			for (size_t x = 0; x < columns; ++x) {
-				if (tiles->at(i) != OGMO_BLANK_TILE) {
+				int tileID = tiles->at(i);
+				if (tileID != OGMO_BLANK_TILE) {
+					int spriteRow = (tileID / resAnim->getRows()) - 1;
+					int spriteColumn = tileID - (spriteRow * resAnim->getColumns());
+					sprite.setColumnRow(spriteColumn, spriteRow);
 					sprite.setPosition(xx, yy);
 					sprite.render(rs);
 				}

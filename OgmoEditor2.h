@@ -6,6 +6,7 @@
 #include "oxygine-framework.h"
 using namespace oxygine;
 
+#define OGMO_OUT_OF_BOUNDS_TILE -2
 #define OGMO_BLANK_TILE -1
 
 enum OgmoLayerDefinitionType {
@@ -76,10 +77,15 @@ public:
 	std::vector<OgmoTileLayer> tileLayers;
 	std::vector<OgmoEntityLayer> entityLayers;
 	int getTileAt(OgmoTileLayer* layer, int x, int y);
+	int getTileAt(OgmoTileLayer* layer, Vector2& position) { return getTileAt(layer, (int)position.x, (int)position.y); }
+	bool isOutOfBounds(int x, int y) { return (x < 0 || y < 0 || x >= roomWidth || y >= roomHeight); }
+	bool isOutOfBounds(Vector2& position) { return isOutOfBounds((int)position.x, (int)position.y); }
 };
 
 class OgmoLevel : public Actor, public OgmoLevelData {
 public:
+	void setSize(float w, float h) { Actor::setSize(w, h); roomWidth = (int)w; roomHeight = (int)h; }
+	void setSize(int w, int h) { Actor::setSize((float)w, (float)h); roomWidth = w; roomHeight = h; }
 	void doRender(const RenderState& rs);
 };
 
